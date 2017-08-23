@@ -24,7 +24,7 @@ class Segment(object):
                (self.src_id[-4:], self.tgt_id[-4:], self.src, tags)
 
 
-TAG_MAP = {'unknown': 'UNK', 'translation': 'T'}
+TAG_MAP = {'unknown': 'UNK', 'translation': 'T', 'identity': 'IDEN'}
 def tag_mapper(tag):
     return TAG_MAP.get(tag, tag)
 

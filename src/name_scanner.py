@@ -32,7 +32,7 @@ sounds = {
     'v': 'vwb',
     'w': 'vwb',
     'x': 'xsch',
-    'y': 'ivu',
+    'y': 'yivu',
     'z': 'zdjh'
 }
 
@@ -81,7 +81,7 @@ def compile_patterns(names, allow_prefix=False, allow_suffix=True, strict=False)
             p.append('.*')
         for ch in name:
             if ch in table:
-                # vowel = 0 or more times, consonents 1 or more times
+                # vowel = 0 or more times, consonants 1 or more times
                 freq = '*' if ch in vowels else '+'                     
                 p.append('[%s]%s' % (table[ch], freq))
             else:
@@ -119,6 +119,3 @@ if __name__ == '__main__':
         else:
             print(k, v)
             print(res)
-    
-    
-    
