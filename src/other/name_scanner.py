@@ -66,7 +66,6 @@ strict_sounds = {
 }
 
 
-
 def lookup(items, pattern):
     return (i for i in items if pattern.match(i))
 

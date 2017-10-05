@@ -1,0 +1,7 @@
+data/
+tmp/
+*.pyc
+*~
+.ipynb_*
+.idea
+

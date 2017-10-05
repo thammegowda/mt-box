@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-import re
-from argparse import ArgumentParser
-from name_scanner import *
 import sys
+
+from other.name_scanner import *
 
 
 def printerr(*args, **kwargs):

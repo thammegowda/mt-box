@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 
 import codecs
-from solr import Solr
-from argparse import ArgumentParser
-import oromo_stemmer
-import sys
 import logging as log
+import sys
+from argparse import ArgumentParser
+
+from other import oromo_stemmer
+from solr import Solr
+
 log.basicConfig(level=log.INFO)
 
 
