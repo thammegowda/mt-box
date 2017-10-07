@@ -1,2 +1,2 @@
 # mt-box
-Machine Translation Scripts  and tools
+Machine Translation Scripts and tools
