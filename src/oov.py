@@ -8,8 +8,6 @@ from nltk.corpus import wordnet as wn
 import numpy as np
 import logging as log
 from pprint import pprint
-import os
-import sys
 from giza import TTable
 import codecs
 
@@ -112,9 +110,9 @@ class SuffixTranslator(OOVTranslator):
 
     def prefix_match(self, term, cluster=True, inverse_wt=0.5, verbose=False):
         ttab = self.ttab
-        for i in range(len(term), int(len(term) / 2.0), -1):
-            qry = term[:i] + ".*"
-            neighbors = list(ttab.vocab_match(qry))
+        node, strip_suffix = ttab.longest_src_prefix(term=term)
+        if len(strip_suffix) < 0.5 * len(term):  # not more than half -- FIXME: its a guess
+            neighbors = list(map(str, node.terminal_children()))
             if neighbors:
                 neighbors = set(neighbors)
                 # step: get candidate probabilities and candidate in degree
@@ -169,8 +167,8 @@ class SuffixTranslator(OOVTranslator):
                         print("Inverse Rank")
                         pprint(inv_rank)
                     for name, score in cands.items():
-                        cands[name] *= fwd_wt  # weightage for the forward score
-                        cands[name] += inverse_wt * inv_rank[name]  # weightage for the inverse score
+                        cands[name] *= fwd_wt  # weight for the forward score
+                        cands[name] += inverse_wt * inv_rank[name]  # weight for the inverse score
 
                 # Step: final sorting
                 cands = sorted(cands.items(), key=lambda x: x[1], reverse=True)
@@ -215,6 +213,18 @@ def read_column(path, col=0, delim=None):
                     res = [x for i, x in enumerate(res) if i in col]
             yield res
 
+
+def get_best(choices, cutoff=0.001):
+    if not choices:
+        return ''
+    res = [choices[0]]
+    for i in range(1, len(choices)):
+        if abs(res[0][1] - choices[i][1]) < cutoff:
+            res.append(choices[i])
+        else:
+            break
+    return '--'.join(x for x, _ in res)
+
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parser = ArgumentParser()
@@ -226,9 +236,8 @@ if __name__ == '__main__':
     trans = SuffixTranslator(ttab)
     for f_w, e_w, in words:
         res = trans.translate(f_w.lower())
-        if res:
-            res = res[:2]
-        print("%s \t %s \t %s" % (f_w, e_w, res))
+        res = get_best(res)
+        print("%s\t%s\t%s" % (f_w, e_w, res))
 
 
 
