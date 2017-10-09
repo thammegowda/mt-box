@@ -6,3 +6,5 @@ tmp/
 .idea
 *.pickle
 *.pkl
+*.ttab
+*.tsv
