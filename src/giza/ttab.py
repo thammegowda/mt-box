@@ -5,6 +5,7 @@ import re
 import os
 import glob
 import pickle
+from ds import Trie
 
 import logging as log
 log.basicConfig(level=log.INFO)
@@ -45,7 +46,12 @@ class TTable(object):
         assert ttab_file
         self.ttab = self.read_ttab(ttab_file[0], self.src_id2tok, self.tgt_id2tok)
         self.inv_ttab = self.read_ttab(inv_ttab_file[0], self.tgt_id2tok, self.src_id2tok) if inv_ttab_file else {}
-        log.info("T-Tab size Size: Normal: %d; inverse:%d" % (len(self.ttab), len(self.inv_ttab)))
+        log.info("T-Tab Size: Normal: %d; inverse:%d" % (len(self.ttab), len(self.inv_ttab)))
+
+        # prefix trie
+        self.src_trie = Trie.build(self.src_tok2id.keys())
+        self.tgt_trie = Trie.build(self.tgt_tok2id.keys())
+        log.info("Trie size: SRC: %d; TGT:%d" % (len(self.src_trie), len(self.tgt_trie)))
 
     def store_at(self, path):
         log.info('storing at %s' % path)
@@ -55,6 +61,9 @@ class TTable(object):
         # TODO: use a trie to support prefix match
         vocab = self.src_tok2id.keys() if source else self.tgt_tok2id.keys()
         yield from (key for key in vocab if key and re.match(pattern, key))
+
+    def longest_src_prefix(self, term):
+        return self.src_trie.prefix_match(term)
 
     @staticmethod
     def reverse_map(data, one_to_one=True):
@@ -70,7 +79,8 @@ class TTable(object):
         log.info("Loading from %s" % path)
         ttab = pickle.load(open(path, 'rb'))
         log.info("Vocabulary Size: SRC: %d; TGT:%d" % (len(ttab.src_id2tok), len(ttab.tgt_id2tok)))
-        log.info("T-Tab size Size: Normal: %d; inverse:%d" % (len(ttab.ttab), len(ttab.inv_ttab)))
+        log.info("T-Tab Size: Normal: %d; inverse:%d" % (len(ttab.ttab), len(ttab.inv_ttab)))
+        log.info("Prefix Trie Size: SRC: %d; TGT:%d" % (len(ttab.src_trie), len(ttab.tgt_trie)))
         return ttab
 
     @staticmethod
