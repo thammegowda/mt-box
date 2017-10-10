@@ -1,17 +1,18 @@
+#!/usr/bin/env python
 """
 Translation Table Data Structure
 """
+import logging as log
 import re
 import os
 import glob
 import pickle
 from ds import Trie
 
-import logging as log
 log.basicConfig(level=log.INFO)
-
 __author__ = 'Thamme Gowda'
-__date__ = 'October 3, 2017'
+__created__ = 'October 3, 2017'
+__version__ = '0.1'
 
 
 class TTable(object):
@@ -124,6 +125,7 @@ class TTable(object):
         for src_tok, cands in ttab.items():
             ttab[src_tok] = sorted(cands, key=lambda x: x[1], reverse=True)
         return ttab
+
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
