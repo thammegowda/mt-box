@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 """
 Out of Vocabulary Translator
@@ -9,7 +10,6 @@ import numpy as np
 import logging as log
 from pprint import pprint
 from giza import TTable
-import codecs
 
 __author__ = 'Thamme Gowda'
 __date__ = 'October 6, 2017'
@@ -190,28 +190,27 @@ class SuffixTranslator(OOVTranslator):
         return rank
 
 
-def read_column(path, col=0, delim=None):
+def read_column(inp, col=0, delim=None):
     """
     reads a column from columnized file such as CSV or TSV. the default args are tuned to read lines in text file.
     Note - this doesnt care for quotes!
-    :param path: path to file
+    :param inp: file to read records
     :param col: column to read from file. it can be integer or list of numbers.
         When it is a list the returned columns are sorted in increasing order without bothering the order given in this list/
     :param delim: delimiter for splitting
     :return:
     """
-    with codecs.open(path) as f:
-        for line in f:
-            res = line.strip()
-            if not res:
-                continue
-            if delim:
-                res = res.split(delim)
-                if type(col) is int:
-                    res = res[col]
-                else:
-                    res = [x for i, x in enumerate(res) if i in col]
-            yield res
+    for line in inp:
+        res = line.strip()
+        if not res:
+            continue
+        if delim:
+            res = res.split(delim)
+            if type(col) is int:
+                res = res[col]
+            else:
+                res = [x for i, x in enumerate(res) if i in col]
+        yield res
 
 
 def get_best(choices, cutoff=0.001):
@@ -223,21 +222,26 @@ def get_best(choices, cutoff=0.001):
             res.append(choices[i])
         else:
             break
-    return '--'.join(x for x, _ in res)
+    return ','.join(x for x, _ in res)
+
 
 if __name__ == '__main__':
-    from argparse import ArgumentParser
-    parser = ArgumentParser()
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--ttab', required=True, help='Translation Table path')
-    parser.add_argument('-i', '--in', help='Input word list', required=True)
+    parser.add_argument('-in', nargs='?', type=argparse.FileType('r'), default=sys.stdin)
+    parser.add_argument('-out', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
     args = vars(parser.parse_args())
     ttab = TTable.load_from(args['ttab'])
-    words = list(read_column(args['in'], delim='\t', col=[0, 1]))
+    words = list(read_column(args['in'], delim='\t'))
     trans = SuffixTranslator(ttab)
-    for f_w, e_w, in words:
+    out = args['out']
+    count =0
+    for f_w in words:
         res = trans.translate(f_w.lower())
         res = get_best(res)
-        print("%s\t%s\t%s" % (f_w, e_w, res))
-
-
+        out.write("%s\t%s\n" % (f_w, res))
+        count += 1
+    log.info("Translated %d words" % count)
 

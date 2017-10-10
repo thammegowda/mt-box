@@ -5,10 +5,11 @@ Custom Data Structures
 """
 
 import logging as log
-log.basicConfig(level=log.INFO)
 
 __author__ = 'Thamme Gowda'
-__date__ = 'October 9, 2017'
+__created__ = 'October 9, 2017'
+__version__ = '0.1'
+log.basicConfig(level=log.INFO)
 
 
 class Trie(object):
