@@ -14,6 +14,7 @@ exec $SCALA_HOME/bin/scala -classpath ".:$CLASSPATH" -savecompiled "$0" "$@"
 !#
 
 import java.io.{File, PrintWriter}
+import java.util.concurrent.{ArrayBlockingQueue, PriorityBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 import edu.stanford.nlp.pipeline._
 import edu.stanford.nlp.ling.{CoreAnnotations, CoreLabel}
@@ -24,23 +25,25 @@ import collection.JavaConverters._
 import scala.io.Source
 import scala.collection._
 
-
 /**
-  * All CLI args go here
+  * CLI args Parser
   */
 object CliArgs {
 
   @Option(name = "-h", aliases = Array("--help"), help=true, usage = "Show this help message")
   var help:Boolean = _
 
-  @Option(name = "-in", required = false, usage = "Input file. Default=STDIN")
+  @Option(name = "-in", usage = "Input file. Default=STDIN")
   var input: String = _
 
-  @Option(name = "-out", required = false, usage = "Output file. Default=STDOUT")
+  @Option(name = "-out", usage = "Output file. Default=STDOUT")
   var output: String = _
 
-  @Option(name = "-delim", required = false, usage = "Delimiter. Default is \\t")
+  @Option(name = "-delim", usage = "Delimiter. Default is \\t")
   var delim = "\t"
+
+  @Option(name = "-threads", usage = "Number of Threads to use")
+  var nThreads:Int = Math.max(2, Runtime.getRuntime.availableProcessors() - 1)
 
   def parseArgs(args:Array[String]): Unit ={
     val parser = new CmdLineParser(this)
@@ -68,15 +71,17 @@ CliArgs.parseArgs(args)
   * @param lemmas seq of lemma words
   * @param posTags seq of POS tags
   */
-case class Record(text:String, words:mutable.Seq[String],
-                  lemmas: mutable.Seq[String], posTags: mutable.Seq[String]) {
+case class Record(seq:Long, text:String, words:mutable.Seq[String],
+                  lemmas: mutable.Seq[String], posTags: mutable.Seq[String]) extends Comparable[Record]{
 
-  def format(): String = {
-    text.replace(CliArgs.delim, " ") + CliArgs.delim +
-      words.mkString(" ") + CliArgs.delim +
-      lemmas.mkString(" ") + CliArgs.delim +
-      posTags.mkString(" ")
-  }
+  def format(): String = Array(
+    s"$seq",
+    text.replace(CliArgs.delim, " "),
+    words.mkString(" "),
+    lemmas.mkString(" "),
+    posTags.mkString(" ")).mkString(CliArgs.delim)
+
+  override def compareTo(o: Record): Int = java.lang.Long.compare(this.seq, o.seq)
 }
 
 // creates a StanfordCoreNLP object, with POS tagging, lemmatization, NER, parsing, and coreference resolution
@@ -88,20 +93,22 @@ val props = PropertiesUtils.asProperties(
 
 val corenlp = new StanfordCoreNLP(props)
 
+//val pQueue = collection.mutable.PriorityQueue[Record]()(Ordering.by(orderBy)).reverse
+// NOTE: Scala PQueue is not thread safe, so using java PQueue
+val pQueue = new PriorityBlockingQueue[Record]()
+
 /**
   * Annotates text
   * @param text text to be annotated
   * @return a Record object
   */
-def annotate(text:String): Record = {
+def annotate(seq:Long, text:String): Record = {
   val doc = new Annotation(text)
   corenlp.annotate(doc)
   var words = new mutable.ArrayBuffer[String]()
   var posTags = new mutable.ArrayBuffer[String]
   var lemmas = new mutable.ArrayBuffer[String]
-
   val sentences = doc.get(classOf[CoreAnnotations.SentencesAnnotation]).asScala
-
   for (sentence: CoreMap <- sentences) {
     val tokens = sentence.get(classOf[CoreAnnotations.TokensAnnotation]).asScala
     for (token: CoreLabel <- tokens) {
@@ -113,23 +120,76 @@ def annotate(text:String): Record = {
       lemmas += lemma
     }
   }
-  Record(text, words, lemmas, posTags)
+  Record(seq, text, words, lemmas, posTags)
 }
+
+val EMPTY = mutable.Seq[String]()
+val sleepTime = 50 //milli seconds
+
+class AnnTask(seq:Long, text:String) extends Runnable {
+  override def run(): Unit = {
+    try pQueue.add(annotate(seq, text))
+    catch {
+      case _: Exception => pQueue.add(Record(seq, text, EMPTY, EMPTY, EMPTY))
+    }
+  }
+}
+
+// Thread pool
+private val pool = new ThreadPoolExecutor(CliArgs.nThreads, CliArgs.nThreads, 1, TimeUnit.MINUTES,
+                        new ArrayBlockingQueue[Runnable](CliArgs.nThreads * 4))
 
 //  Up stream to read input
 val input = if (CliArgs.input != null) Source.fromFile(CliArgs.input) else Source.stdin
 // Down Stream to consume output
-var output = if (CliArgs.output != null)
-            new PrintWriter(new File(CliArgs.output))
-            else new PrintWriter(System.out)
-try {
-  for (line <- input.getLines()) {
-    output.write(annotate(line).format())
-    output.write("\n")
+var output = if (CliArgs.output != null) new PrintWriter(new File(CliArgs.output)) else new PrintWriter(System.out)
+
+@volatile var readerSeq:Long = 1
+@volatile var writerSeq = readerSeq
+@volatile var readerDone = false
+
+
+val writer = new Thread {
+  override def run(): Unit = {
+    while (!(readerSeq == writerSeq && readerDone)) {
+      // when to pack-up the loop
+      //wait until the correct sequence shows up in the top of heap
+      while (pQueue.isEmpty || pQueue.peek().seq != writerSeq) {
+        Thread.sleep(sleepTime)
+      }
+      // When correct item is ready
+      if (!pQueue.isEmpty) {
+        if (pQueue.peek().seq == writerSeq) {
+          val rec = pQueue.poll()
+          output.write(rec.format())
+          output.write("\n")
+          writerSeq += 1
+        }
+      }
+    }
   }
-} finally {
-  output.flush()
-  if (CliArgs.output != null) {
-    output.close()
+}
+
+val reader = new Thread {
+  override def run(): Unit = {
+    for (line <- input.getLines()) {
+      if (pool.getQueue.size() >= 2 * CliArgs.nThreads){
+        Thread.sleep(sleepTime)
+      }
+      pool.execute(new AnnTask(readerSeq, line))
+      readerSeq += 1
+    }
+    readerDone = true // end of reading
   }
+}
+
+reader.start()
+writer.start()
+
+reader.join()
+writer.join()
+pool.shutdown()
+output.flush()
+if (CliArgs.output != null) {
+  output.close()
 }
