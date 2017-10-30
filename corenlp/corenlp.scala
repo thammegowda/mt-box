@@ -9,8 +9,8 @@
 #
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 CLASSPATH="$DIR/libs/*:$DIR/stanford-corenlp-full-2017-06-09/*"
-SCALA_HOME="/Users/tg/bin/scala-2.12.4"
-exec $SCALA_HOME/bin/scala -classpath ".:$CLASSPATH" -savecompiled "$0" "$@"
+which scala > /dev/null; [[ $? -eq 0 ]] || echo 'scala not found. Download and add it to PATH. See https://www.scala-lang.org/download/'
+exec scala -classpath ".:$CLASSPATH" -savecompiled "$0" "$@"
 !#
 
 import java.io.{File, PrintWriter}
@@ -84,7 +84,7 @@ case class Record(seq:Long, text:String, words:mutable.Seq[String],
   override def compareTo(o: Record): Int = java.lang.Long.compare(this.seq, o.seq)
 }
 
-// creates a StanfordCoreNLP object, with POS tagging, lemmatization, NER, parsing, and coreference resolution
+// creates a StanfordCoreNLP object, with POS tagging, lemmatization
 val props = PropertiesUtils.asProperties(
   "annotators", "tokenize,ssplit,pos,lemma",
   "ssplit.isOneSentence", "true",
@@ -124,7 +124,7 @@ def annotate(seq:Long, text:String): Record = {
 }
 
 val EMPTY = mutable.Seq[String]()
-val sleepTime = 50 //milli seconds
+val sleepTime = 25 //milli seconds
 
 class AnnTask(seq:Long, text:String) extends Runnable {
   override def run(): Unit = {
@@ -189,6 +189,7 @@ writer.start()
 reader.join()
 writer.join()
 pool.shutdown()
+
 output.flush()
 if (CliArgs.output != null) {
   output.close()
