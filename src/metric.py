@@ -2,6 +2,7 @@
 """
 Useful metrics for evaluating predictions and gold answers
 """
+import math
 from copy import copy
 import logging as log
 import numpy as np
@@ -11,6 +12,7 @@ log.basicConfig(level=log.DEBUG)
 __author__ = 'Thamme Gowda'
 __created__ = 'October 10, 2017'
 __version__ = '0.1'
+
 
 
 class StrictMatch(object):
@@ -23,14 +25,13 @@ class GloveCosine(object):
     """
     Computes cosine similarity between terms using Glove vectors
     """
-    def __init__(self, path, limit=None, exp=2):
+    def __init__(self, path, limit=None):
         log.info("Reading Gloves from %s " % path)
         self.idx2tok, self.gloves = GloveCosine.read_gloves(path, limit)
         self.tok2idx = dict((tok, i) for i, tok in enumerate(self.idx2tok))
         assert len(self.idx2tok) == len(self.tok2idx) == len(self.gloves)
         self.dim = self.gloves.shape[1]
         log.info("Read %d vectors, dimension=%d" % (len(self.gloves), self.dim))
-        self.exp = exp
 
     def glove(self, term):
         if term in self.tok2idx:
@@ -51,7 +52,12 @@ class GloveCosine(object):
         assert len(vocab) == len(vectors)
         return vocab, np.array(vectors)
 
-    def __call__(self, word1, word2, exp=None):
+    @staticmethod
+    def scaled_sigmoid(score):
+        scaled = 10 * (score - 0.5)
+        return 1 / (1 + math.exp(-scaled))
+
+    def __call__(self, word1, word2):
         """
         Computes cosine similarity between these two
         :param word1: arg1
@@ -60,15 +66,13 @@ class GloveCosine(object):
         """
         assert ' ' not in word1
         assert ' ' not in word2
-        if exp is None:
-            exp = self.exp
-        assert exp > 0
         vec1, vec2 = self.glove(word1), self.glove(word2)
         if vec1 is None or vec2 is None:
             # if one of them is missing
             return 1.0 if word1 == word2 else 0.0
         else:
-            return (1.0 - cosine(vec1, vec2)) ** exp
+            score = (1.0 - cosine(vec1, vec2))
+            return self.scaled_sigmoid(score)
 
 
 def score_seqs(seq1, seq2, metric):
@@ -160,9 +164,10 @@ if __name__ == '__main__':
     if args['metric'] == 'strict':
         metric = StrictMatch()
     elif args['metric'] == 'glove':
-        metric = GloveCosine(args['model'], limit=args.get('vocab_size', None), exp=2)
+        metric = GloveCosine(args['model'], limit=args.get('vocab_size', None))
     else:
         raise Exception('Unknown metric %s' % args['metric'])
     score_all(args['in'], args['out'], metric,
               multi_mode=args['multi_mode'],
               single_score=args['average_score'])
+

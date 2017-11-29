@@ -32,8 +32,8 @@ class TTable(object):
         self.dir = giza_out_dir
         assert os.path.exists(self.dir)
 
-        src_vcb = glob.glob(self.dir + '/*.%s.vcb' % src)
-        tgt_vcb = glob.glob(self.dir + '/*.%s.vcb' % tgt)
+        src_vcb = glob.glob(self.dir + '/*.src.vcb')
+        tgt_vcb = glob.glob(self.dir + '/*.tgt.vcb')
         log.info("Vocabulary Files: SRC: %s; TGT:%s" % (src_vcb, tgt_vcb))
         assert 1 == len(src_vcb) == len(tgt_vcb)
         src_vcb, tgt_vcb = src_vcb[0], tgt_vcb[0]
