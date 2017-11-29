@@ -166,7 +166,7 @@ class DAG(object):
         assert node.uid not in self.node_idx
         self.node_idx[node.uid] = node
 
-    def connect(self, start, end):
+    def connect(self, start, end, **kwargs):
         if type(start) is str and start in self.node_idx:
             start = self.node_idx[start]
         if type(end) is str and end in self.node_idx:
@@ -177,7 +177,7 @@ class DAG(object):
             log.error("Cant connect %s -> %s " % (start.uid, end.uid))
         assert start.uid in self.node_idx
         assert end.uid in self.node_idx
-        edge = self.Edge(start, end)
+        edge = self.Edge(start, end, **kwargs)
         self.add_edge(edge)
         return edge
 
@@ -256,7 +256,7 @@ class DAG(object):
         import networkx as nx
         DG = nx.DiGraph()
         DG.add_nodes_from(self.get_nodes())
-        DG.add_edges_from((e.start, e.end) for e in self.get_edges())
+        DG.add_edges_from((e.start, e.end, {'label': e.name}) for e in self.get_edges())
         return DG
 
 
@@ -283,7 +283,7 @@ class MorphGraph(DAG):
         suf_map = {}
         suf_map_rev = defaultdict(set)
         edges = set()
-        merged_nodes = {}
+        eps_edges = set()
         for w in self.words:
             prf_path, pcut = self.prf_trie.path(w)
             suf_path, scut = self.suf_trie.path(w[::-1])
@@ -323,38 +323,12 @@ class MorphGraph(DAG):
                         cur_node = prf_map[pn]
                     # - case 3b: both are mapped to different node in merged graph --> merge them
                     else:
-                        """this is a bit complex merge operation. Its done like this
-                        Eg words: ['XLONES', 'XMPERE', 'XMPERES'] 
-                        When these are processed in the same order,
-                        the 'E' in XLONES and last 'E' in XMPERES are mapped to two different nodes in the merged graph
-                        based on prefix and suffix tries respectively.
-                        So we are going to merge both the 'E' nodes to same, to make single 'ES' suffix
-                        1. First we ask the DAG graph to merge those nodes (it should update edges its internal structures
-                        2. prf_map and suf_map has projects, we ask them to update to the new merged node.
-                            a) this is done quickly by constructing the prf_map_rev and suf_map_rev index ahead of the time.
-                        3. point the cur_node to merged node
-                        4. update prf_map suf_map for the current pn and sn
-                        5. update the reverse maps of cur_node
-                        TODO: Maybe there is a simpler way to accomplish the same task  
-                        """
-                        log.info("Merging -- %s at %s" % (w, ch))
                         node1 = prf_map[pn]
                         node2 = suf_map[sn]
-                        new_node = self.merge_nodes(node1, node2)
-                        for old_node in (node1, node2):
-                            # prefix - update projection mappings
-                            for prf_proj_node in prf_map_rev[old_node]:
-                                prf_map[prf_proj_node] = new_node
-                            # suffix - update projection mappings
-                            for suf_proj_node in suf_map_rev[old_node]:
-                                suf_map[suf_proj_node] = new_node
-                        cur_node = new_node
-                        prf_map[pn] = suf_map[sn] = cur_node   # this may have been done already in the above loop
-                        prf_map_rev[cur_node] = prf_map_rev[node1] | prf_map_rev[node2] | {pn, sn}
-                        if node1.uid != cur_node.uid:
-                            merged_nodes[node1.uid] = cur_node.uid
-                        if node2.uid != cur_node.uid:
-                            merged_nodes[node2.uid] = cur_node.uid
+                        # tried to merge - it creates cycles in the DAG, pretty messed up here
+                        # So just inserting non deterministic edge from pref_node to suf_node
+                        cur_node = node2
+                        eps_edges.add((node1, node2))
                 else:
                     print(pn in prf_map, sn in suf_map)
                     raise Exception('Shouldnt happen! - Case not handled')
@@ -365,28 +339,8 @@ class MorphGraph(DAG):
             edges.add((prev_node.uid, end_node.uid))
 
         print("%d edges " % len(edges))
-        # self.connect_all(edges)
-
-        def update_edge(pair):
-            print(pair, end='-->')
-            start, end = pair
-            assert type(start) == str and type(end) == str
-            # update signature of edges
-            if start in merged_nodes:
-                start = merged_nodes[start]
-            if end in merged_nodes:
-                end = merged_nodes[end]
-            print((start, end))
-            return start, end
-        # resolve transitive merge A->B, B->C ==> A->C
-        for old, new in list(merged_nodes.items()):
-            while new in merged_nodes:
-                new = merged_nodes[new]
-            merged_nodes[old] = new
-        # Update mappings of edges, update signatures, drop duplicates
-        for key, val in merged_nodes.items():
-            print("MERGE: %s -> %s" % (key, val))
-        edges = set(map(update_edge, edges))
-        print("%d edges " % len(edges))
         self.connect_all(edges)
+
+        for start, end in eps_edges:
+            self.connect(start, end, name='ϵ', epsilon=True)
 
