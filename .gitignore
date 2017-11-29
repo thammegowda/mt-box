@@ -8,3 +8,4 @@ tmp/
 *.pkl
 *.ttab
 *.tsv
+*.dot
