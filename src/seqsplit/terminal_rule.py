@@ -15,7 +15,6 @@ from collections import defaultdict
 from seqsplit import SeqSplitter
 
 
-
 class TerminalSplitter(SeqSplitter):
 
     class Marker(object):
@@ -57,7 +56,7 @@ class TerminalSplitter(SeqSplitter):
             if seq[-1] not in self.terminals:
                 self.other_terminals[seq[-1]] += 1
 
-        if self.min_obs > 1:
+        if self.min_obs >= 1:
             for tok, tokdata in self.terminals.items():
                 for ctx, data in tokdata.exceptions.items():
                     #  remove rare exceptions
@@ -102,7 +101,7 @@ class TerminalSplitter(SeqSplitter):
                         tok = long_seq[tru_ctx_idx]
                         if self.nocase:
                             tok = tok.lower()
-                        if tok in exepts:
+                        if exepts.get(tok, 0) > 0:
                             do_split = False           # its a false pos, dont split
                 if do_split:
                     res.append(long_seq[left: idx + 1])
