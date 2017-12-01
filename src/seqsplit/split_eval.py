@@ -112,7 +112,8 @@ def confusion_matrix(out, ref):
     assert len(out) == len(ref)
     tab = dict((x, 0) for x in ((0, 0), (0, 1), (1, 0), (1, 1)))
     print(len(out), len(ref))
-    for ((_, pred), (_, gold)) in zip(out, ref):
+    for ((pt, pred), (gt, gold)) in zip(out, ref):
+        assert pt.replace(' ', '') == gt.replace(' ', ''), '%s -- %s' % (pt, gt)
         tab[gold, pred] += 1
     return tab
 
