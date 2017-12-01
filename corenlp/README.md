@@ -25,5 +25,18 @@ Usage::
  -in VAL     : Input file. Default=STDIN
  -out VAL    : Output file. Default=STDOUT
  -threads N  : Number of Threads to use. (default=N-1)
-``` 
+```
+
+# Sentence Splitter
+
+$ ./corenlp-ssplt.scala -h
+Usage::
+ -h (--help) : Show this help message (default: true)
+ -in VAL     : Input file. Default=STDIN
+ -out VAL    : Output file. Default=STDOUT
+
+
+
+
+
 
