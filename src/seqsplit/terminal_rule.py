@@ -1,6 +1,19 @@
-from collections import defaultdict
+#!/usr/bin/env python
+"""
+# Usage :
+    # Train
+    $ cat  <train_dir>/*.txt | python ./src/seqsplit/terminal_rule.py learn ssplit-1B-rules.pkl -vv -ci
+    # Split
+    $ cat  <test_dir>/*.txt | python ./src/seqsplit/terminal_rule.py split ssplit-1B-rules.pkl
 
+---
+Author  : Thamme Gowda
+Created : Nov 29, 2017
+"""
+
+from collections import defaultdict
 from seqsplit import SeqSplitter
+
 
 
 class TerminalSplitter(SeqSplitter):
@@ -25,7 +38,9 @@ class TerminalSplitter(SeqSplitter):
         self.nocase = nocase
 
     def learn(self, seqs, verbose=False):
+        count = 0
         for seq in seqs:
+            count += 1
             false_pos = [(idx, tok) for idx, tok in enumerate(seq)
                          if tok in self.terminals]
 
@@ -59,22 +74,27 @@ class TerminalSplitter(SeqSplitter):
                     pprint(sorted(data.items(), key=lambda x: x[1], reverse=True))
             print("Other terminals::")
             pprint(self.other_terminals)
+            print("Learned from %d records" % count)
 
     def learn_from(self, lines, verbose=False):
         def prepare():
             for line in lines:
                 if self.nocase:
                     line = line.lower()
-                yield self.tokenize(line.strip())
+                line = line.strip()
+                if line:
+                    yield self.tokenize(line)
         seq = prepare()
         self.learn(seq, verbose=verbose)
 
     def split(self, long_seq):
+        if not seq:
+            return seq
         res = []
         left = 0
         for idx in range(1, len(long_seq)):
             if long_seq[idx] in self.terminals:
-                split = True
+                do_split = True
                 model = self.terminals[long_seq[idx]]
                 for rel_ctx_idx, exepts in model.exceptions.items():
                     tru_ctx_idx = rel_ctx_idx + idx
@@ -83,10 +103,10 @@ class TerminalSplitter(SeqSplitter):
                         if self.nocase:
                             tok = tok.lower()
                         if tok in exepts:
-                            split = False           # its a false pos, dont split
-                if split:
-                    res.append(long_seq[left: idx+1])
-                    left = idx+1
+                            do_split = False           # its a false pos, dont split
+                if do_split:
+                    res.append(long_seq[left: idx + 1])
+                    left = idx + 1
 
         if left < len(long_seq):    # left over sequence ending
             res.append(long_seq[left:])
