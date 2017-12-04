@@ -30,8 +30,7 @@ class TerminalSplitter(SeqSplitter):
     """
     def __init__(self, terminals=('.', '!', '?', '..', '...', '…'), covers=('()', '\'\'', '""', '“”', '‘’'),
                  context=(-1,), min_observations=2, nocase=True):
-        self.version = 3.0
-
+        self.version = 3.1
         self.terminals = dict((t, self.Marker(t, context)) for t in terminals)
         self.min_obs = min_observations      # an exception must be seen at least 2 times
         self.other_terminals = defaultdict(int)
@@ -64,6 +63,23 @@ class TerminalSplitter(SeqSplitter):
                     last = tok
         if last is not None:
             res.append(last)
+
+        # check if terminals are not tokenized properly
+        # examples: hello? yes!!! Cool..
+        seq, res = res, []
+        for tok in seq:
+            if tok in self.terminals:
+                res.append(tok)
+            else:
+                if tok[-1] in self.terminals:
+                    # last char is attached
+                    res.extend([tok[:-1], tok[-1]])
+                elif tok[-2:] in self.terminals:
+                    # last two chars are attached
+                    res.extend([tok[:-2], tok[-2]])
+                else:
+                    # just add
+                    res.append(tok)
         return res
 
     def learn(self, seqs, verbose=False):
