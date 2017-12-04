@@ -28,9 +28,9 @@ class TerminalSplitter(SeqSplitter):
     It learns exceptions using context,
     i.e. it tries to avoid false positive when given terminal tokens are treated as sentence markers.
     """
-    def __init__(self, terminals=('.', '!', '?'), covers=('()', '\'\'', '""', '“”', '‘’'),
+    def __init__(self, terminals=('.', '!', '?', '..', '...', '…'), covers=('()', '\'\'', '""', '“”', '‘’'),
                  context=(-1,), min_observations=2, nocase=True):
-        self.version = 2.0
+        self.version = 3.0
 
         self.terminals = dict((t, self.Marker(t, context)) for t in terminals)
         self.min_obs = min_observations      # an exception must be seen at least 2 times
