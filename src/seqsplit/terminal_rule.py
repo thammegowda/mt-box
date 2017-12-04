@@ -28,13 +28,43 @@ class TerminalSplitter(SeqSplitter):
     It learns exceptions using context,
     i.e. it tries to avoid false positive when given terminal tokens are treated as sentence markers.
     """
-    def __init__(self, terminals=('.', '!', '?'), context=(-1,), min_observations=2, nocase=True):
-        self.version = 1.0
+    def __init__(self, terminals=('.', '!', '?'), covers=('()', '\'\'', '""', '“”', '‘’'),
+                 context=(-1,), min_observations=2, nocase=True):
+        self.version = 2.0
 
         self.terminals = dict((t, self.Marker(t, context)) for t in terminals)
         self.min_obs = min_observations      # an exception must be seen at least 2 times
         self.other_terminals = defaultdict(int)
         self.nocase = nocase
+        self.openers = set(c[0] for c in covers)
+        self.closures = set(c[1] for c in covers)
+
+        for c in self.closures:
+            for t in terminals:
+                t2 = '%s%s' % (t, c)
+                self.terminals[t2] = self.Marker(t2, context)
+
+    def tokenize(self, seq):
+        toks = super(TerminalSplitter, self).tokenize(seq)
+
+        """Groups tokens that are wrongly split"""
+        # Detokenizes by using a look ahead.
+        res = []
+        last = None
+        for tok in toks:
+            if last is None:
+                last = tok
+            else:
+                if tok in self.closures and last in self.terminals:
+                    # print('{0} {1} -->  {0}{1}'.format(last, tok))
+                    res.append('%s%s' % (last, tok))     # remove split
+                    last = None
+                else:
+                    res.append(last)
+                    last = tok
+        if last is not None:
+            res.append(last)
+        return res
 
     def learn(self, seqs, verbose=False):
         count = 0
