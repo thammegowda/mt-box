@@ -119,10 +119,11 @@ def confusion_matrix(out, ref):
     print(len(out), len(ref))
     for i, ((pt, pred), (gt, gold)) in enumerate(zip(out, ref)):
         assert pt.replace(' ', '') == gt.replace(' ', ''), '%s -- %s' % (pt, gt)
-        if pred == 0 and gold == 1:
+        if pred != gold:
             #print("False Negative::")
             print('OUT:' + ' '.join(map(lambda x: x[0] + ('**' if x[1] else ''),  out[i-10:i+10])))
             print('REF:' + ' '.join(map(lambda x: x[0] + ('**' if x[1] else ''), ref[i - 10:i + 10])))
+            print("===")
         tab[gold, pred] += 1
     return tab
 
