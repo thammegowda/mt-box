@@ -8,7 +8,8 @@
 #    3. Easy to tweak -- edit the scala script below, this is just a beginning
 #
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CLASSPATH="$DIR/libs/*:$DIR/stanford-corenlp-full-2017-06-09/*"
+CLASSPATH=`echo $DIR/libs/* $DIR/stanford-corenlp-full-*/* |tr ' ' ':'`
+export PATH="${PATH}:`echo $DIR/scala-*/bin`"
 which scala > /dev/null; [[ $? -eq 0 ]] || echo 'scala not found. Download and add it to PATH. See https://www.scala-lang.org/download/'
 exec scala -classpath ".:$CLASSPATH" -savecompiled "$0" "$@"
 !#
