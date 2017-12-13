@@ -168,6 +168,7 @@ if __name__ == '__main__':
     p.add_argument('-out', nargs='?', type=argparse.FileType('w'), default=sys.stdout)
     p.add_argument('-ci', action='store_true', help="Case Insensitive")
     p.add_argument('-vv', action='store_true', help="Print stats")
+    p.add_argument('-mf', action='store_true', help="Multi File Input. The input is a list of paths")
     p.add_argument('-min_obs', default=4, type=int, help="Minimum Observation of exceptions, default=4")
 
     args = vars(p.parse_args())
@@ -180,13 +181,26 @@ if __name__ == '__main__':
         spltr.save(model)
 
     elif cmd == 'split':
+        doc_id = ''
+        multi_file = args['mf']
         spltr = SeqSplitter.load(model)
-        for seq in args['in']:
-            seq = spltr.tokenize(seq.strip())
-            splits = spltr.split(seq)
-            for split in splits:
-                args['out'].write(spltr.detokenize(split))
-                args['out'].write("\n")
-            args['out'].write("\n")
+        for rec in args['in']:
+            count = 0
+            rec = rec.strip()
+            seqs = [rec]
+            if multi_file:
+                doc_id = rec.split('/')[-1]
+                with open(rec) as f:
+                    seqs = f.readlines()
+            seqs = (seq.strip() for seq in seqs if seq.strip())
+            for seq in seqs:
+                splits = spltr.split(spltr.tokenize(seq))
+                for split in splits:
+                    if multi_file:
+                        count += 1
+                        args['out'].write('%s:%d\t' % (doc_id, count))
+                    args['out'].write(spltr.detokenize(split))
+                    args['out'].write("\n")
+                #args['out'].write("\n")
     else:
         raise Exception()

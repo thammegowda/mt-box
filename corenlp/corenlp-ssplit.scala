@@ -36,6 +36,9 @@ object CliArgs {
   @Option(name = "-out", usage = "Output file. Default=STDOUT")
   var output: String = _
 
+  @Option(name = "-mf", usage = "Multi File Input. Treats input as file paths. default=False")
+  var multiFile: Boolean = false
+
   def parseArgs(args:Array[String]): Unit ={
     val parser = new CmdLineParser(this)
     try {
@@ -65,15 +68,24 @@ val props = PropertiesUtils.asProperties(
   "ssplit.isOneSentence", "false")
 val corenlp = new StanfordCoreNLP(props)
 
-for (line <- input.getLines()) {
-  if (!line.trim.isEmpty) {
-    val doc = new Annotation(line)
-    corenlp.annotate(doc)
-    val sentences = doc.get(classOf[CoreAnnotations.SentencesAnnotation]).asScala
-    for (sent: CoreMap <- sentences) {
-      output.println(sent)
+for (rec <- input.getLines()) {
+  var count = 0
+  if (!rec.trim.isEmpty) {
+    val lines:Iterator[String] = if (CliArgs.multiFile) Source.fromFile(rec.trim).getLines()
+                                 else Array(rec).iterator
+    for (line <- lines) {
+      if (!line.trim.isEmpty){
+        val doc = new Annotation(line)
+        corenlp.annotate(doc)
+        val sentences = doc.get(classOf[CoreAnnotations.SentencesAnnotation]).asScala
+        for (sent: CoreMap <- sentences) {
+          count += 1
+          if (CliArgs.multiFile) {output.print(s"${rec.split("/").last}:$count\t")}
+          output.println(sent.toString.replace("\t", " "))
+        }
+        //output.println() // empty line between records
+      }
     }
-    output.println() // empty line between records
   }
 }
 
