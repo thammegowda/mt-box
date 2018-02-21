@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # Author =  Thamme Gowda
-# Date = Feb 20,
+# Date = Feb 20, 2018
+# Version 0.1
+
 """
 When morfessor or BPE encoder is used, the words are split into multiple parts.
 translation model might simply copy parts to target side, thus some parts might be copied.
@@ -8,6 +10,8 @@ This script attempts to identify parts, and when feasible it joins them.
 
 Format:
  SOURCE SENTENCE<tab>SOURCE SPLIT SENTENCE<tab>TARGET SENTENCE
+
+
 """
 
 import logging as log
@@ -44,9 +48,9 @@ def un_split(seq1, seq2, drop_chars=''):
     return splits
 
 
-def replace_whole(orig, src, tgt):
+def replace_whole(orig, src, tgt, drop_chars):
     """Replaces parts with whole"""
-    splits = un_split(orig, src)
+    splits = un_split(orig, src, drop_chars)
     rev_lookup = {}
     for w, ss in zip(orig, splits):
         for s in ss:
@@ -73,7 +77,7 @@ def replace_whole(orig, src, tgt):
     return result
 
 
-def run(inp, outp):
+def run(inp, outp, drop_chars):
     """
     Un split
     :param outp:
@@ -83,8 +87,8 @@ def run(inp, outp):
         cols = line.strip().split('\t')
         assert len(cols) == 3
         orig, src, tgt = tuple(x.split() for x in cols)
-        print(orig, src, tgt)
-        result = replace_whole(orig, src, tgt)
+        # print(orig, src, tgt)
+        result = replace_whole(orig, src, tgt, drop_chars)
         result = ' '.join(result)
         outp.write(result)
         outp.write('\n')
@@ -97,5 +101,6 @@ if __name__ == '__main__':
                    type=argparse.FileType('r'), default=sys.stdin)
     p.add_argument('-out', nargs='?', help="Output file to write data.", type=argparse.FileType('w'),
                    default=sys.stdout)
+    p.add_argument('-drop', nargs='?', help="Drop characters such as '-', '@@', that are affixed during the split.")
     args = vars(p.parse_args())
-    run(args['in'], args['out'])
+    run(args['in'], args['out'], args['drop'])
