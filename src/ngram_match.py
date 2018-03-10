@@ -62,7 +62,3 @@ if __name__ == '__main__':
     p.add_argument('-lc', '--lower-case', help='ignore case', default=False, action='store_true')
     args = vars(p.parse_args())
     run(args['in'], args['ref'], args['out'], args['max_grams'], args['lower_case'])
-
-
-
-
