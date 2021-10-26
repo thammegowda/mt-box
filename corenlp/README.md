@@ -13,7 +13,7 @@ It has three objectives:
 
 ## Example
 
-$ head myfile.txt  | ./corenlp.scala
+$ `head myfile.txt  | ./corenlp.scala`
 
 ## Usage 
 
@@ -29,12 +29,13 @@ Usage::
 
 # Sentence Splitter
 
+```
 $ ./corenlp-ssplt.scala -h
 Usage::
  -h (--help) : Show this help message (default: true)
  -in VAL     : Input file. Default=STDIN
  -out VAL    : Output file. Default=STDOUT
-
+```
 
 
 
